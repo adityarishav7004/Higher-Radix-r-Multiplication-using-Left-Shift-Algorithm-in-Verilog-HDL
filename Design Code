@@ -1,0 +1,51 @@
+module Radix_r_left_shift #(
+    parameter N = 8,
+    parameter K = 3          // radix r = 2^K (performed for radix 8 multiplication)
+)(
+    input  wire           clk,
+    input  wire           rst,
+    input  wire           start,
+    input  wire [N-1:0]   multiplicand,
+    input  wire [N-1:0]   multiplier,
+    output reg  [2*N-1:0] product,
+    output reg            done
+);
+
+    localparam TOTAL_BITS = ((N + K - 1) / K) * K;
+    localparam ITERS      = TOTAL_BITS / K;
+
+    reg [2*N-1:0] P;
+    reg [TOTAL_BITS-1:0] Q;
+    reg [2*N-1:0] M_ext;
+    reg [$clog2(ITERS):0] count;
+    reg [K-1:0] x;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            P <= 0;
+            Q <= 0;
+            product <= 0;
+            done <= 0;
+        end
+        else begin
+            if (start) begin
+                P <= 0;
+                Q <= {{(TOTAL_BITS-N){1'b0}}, multiplier};
+                M_ext <= multiplicand;
+                count <= ITERS;
+                done <= 0;
+            end
+            else if (count != 0) begin
+                x = Q[TOTAL_BITS-1 -: K];   
+                P <= (P << K) + x * M_ext;
+                Q <= Q << K;
+                count <= count - 1;
+            end
+            else if (!done) begin
+                product <= P;
+                done <= 1;
+            end
+        end
+    end
+
+endmodule
